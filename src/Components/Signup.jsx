@@ -1,29 +1,60 @@
 import React, { useState } from "react";
 import { auth, googleProvider } from "../config/Firebase";
 import { createUserWithEmailAndPassword, signInWithPopup } from "firebase/auth";
-import { useDispatch } from "react-redux";
+import { useDispatch,useSelector } from "react-redux";
 import { doAuth } from "../Features/AuthSlice";
 import { Link, useNavigate } from "react-router-dom";
-import { saveUsername } from "../Features/UserSlice";
+import { saveUsername,saveUserDetails } from "../Features/UserSlice";
 import icon from '../Assets/upload.png'
+import { db } from "../config/Firebase";
+import { collection,addDoc,getDocs} from "firebase/firestore";
+
 const Signup = () => {
+  const loggedInUserEmail=useSelector((state)=>state.userdetails.Username);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [email, setemail] = useState("");
   const [password, setPassword] = useState("");
-  console.log(auth?.currentUser?.email);
+  const[name,setname]=useState("");
+  var res=null;
+  const addUser = async ()=>{
+  try{
+    const uid=res.user.uid;
+    const email=res._tokenResponse.email;
+    const name=res.displayName;
+    const id=Date.now();
+    const docRef=await addDoc(collection(db,"Users"),{
+      uid:res.user.uid,
+      name:res.displayName,
+      email:res._tokenResponse.email,
+      userid:Date.now()
+    });
+    dispatch(saveUserDetails({uid,email,name,id}))
+    console.log(docRef.id)
+  }catch(err){
+    console.log(err);
+  }
+  }
   const signin = async () => {
     try {
-      const res = await createUserWithEmailAndPassword(auth, email, password);
-      console.log(res._tokenResponse);
+      const data =await getDocs(collection(db,"Users"))
+      const users=data.docs.map((doc)=>({...doc.data(),id:doc.id}));
+      const filteredData=users.filter((item)=> {
+        return email===item.email
+      });
+      if(filteredData.length>0){
+        dispatch(doAuth());
+        navigate("/login")
+      }
+      else{
+      res = await createUserWithEmailAndPassword(auth, email, password);
+      res.displayName=name;
       dispatch(doAuth());
-      dispatch(saveUsername(email));
-      navigate("/home");
+      await addUser();
+      navigate("/login")
+      }
     } catch (err) {
-      console.log(err.type)
-      // if(err==='auth/invalid-email'){
-      // console.log("Hi");
-      // }
+      console.log(err);
     }
   };
   const signingoogle = async () => {
@@ -31,7 +62,17 @@ const Signup = () => {
       const res = await signInWithPopup(auth, googleProvider);
       console.log(res);
       dispatch(doAuth());
-      navigate("/home");
+      dispatch(saveUsername(res._tokenResponse.email));
+      const data =await getDocs(collection(db,"Users"))
+      const users=data.docs.map((doc)=>({...doc.data(),id:doc.id}));
+      const filteredData=users.filter((item)=> loggedInUserEmail===item.email);
+      if(filteredData.length>0){
+      navigate("/login")
+      }
+      else{
+      await addUser();
+      navigate("/login")
+      }
     } catch (err) {
       alert("You are already a registered user!!")
       console.log(err);
@@ -46,6 +87,11 @@ const Signup = () => {
           </div>
           <div className="signupinput">
             <div className="inpdetails">
+            <input
+              type="name"
+              placeholder=" Name.."
+              onChange={(e) => setname(e.target.value)}
+            />
             <input
               type="email"
               placeholder=" Mail"

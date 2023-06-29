@@ -6,7 +6,7 @@ import { useDispatch } from "react-redux";
 import { doAuth } from "../Features/AuthSlice";
 import { saveUsername } from "../Features/UserSlice";
 const Login = () => {
-    const[email,setemail]=useState("");
+  const[email,setemail]=useState("");
   const[password,setPassword]=useState("");
   const navigate=useNavigate();
   const dispatch=useDispatch();
@@ -14,6 +14,7 @@ const Login = () => {
    e.preventDefault();
    signInWithEmailAndPassword(auth,email,password).then((userCredential)=>{
     const user=userCredential.user;
+    console.log(user)
     dispatch(doAuth());
     navigate("/home")
     dispatch(saveUsername(user.email));
